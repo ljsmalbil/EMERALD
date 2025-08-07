@@ -10,6 +10,7 @@ class WorldModel(nn.Module):
         self.hidden_dim = config.hidden_dim
         self.latent_dim = config.latent_dim
         self.context_dim = config.context_dim
+        self.use_x = config.use_x
         self.hidden_state = None
         self.current_context = None
         self.prev_context = None
@@ -18,9 +19,14 @@ class WorldModel(nn.Module):
         self.psi = Psi(state_dim=self.obs_shape, hidden_dim=self.hidden_dim,
                        latent_dim=self.latent_dim, context_dim=self.context_dim)
 
-        # Context encoder from (x, a, r) history
-        self.lstm = ContextEncoder(latent_dim=self.latent_dim, act_dim=self.act_dim,
-                                   hidden_dim=self.hidden_dim, e_dim=self.context_dim)
+        if self.use_x:
+            # Context encoder from (x, a, r) history
+            self.lstm = ContextEncoder(latent_dim=self.latent_dim, act_dim=self.act_dim,
+                                    hidden_dim=self.hidden_dim, e_dim=self.context_dim)
+        else:
+            # Context encoder from (s, a, r) history
+            self.lstm = ContextEncoder(latent_dim=self.obs_shape, act_dim=self.act_dim,
+                                          hidden_dim=self.hidden_dim, e_dim=self.context_dim)
 
         # Transition and reward models (now context-free)
         self.tau = Tau(action_dim=self.act_dim, hidden_dim=self.hidden_dim,
@@ -50,12 +56,18 @@ class WorldModel(nn.Module):
             self.lstm.reset()
             e = torch.zeros(batch_size, self.context_dim).to(s.device)
         else:
-            with torch.no_grad():
-                # print(s.size())
-                # print(torch.zeros_like(s[:, :self.context_dim]))
-                x_current = self.psi(s, e=torch.zeros_like(s[:, :self.context_dim]))
-            e, self.hidden_state = self.lstm(x_current, action, reward, self.hidden_state)
-            e = e.detach()
+            if self.use_x:
+                with torch.no_grad():
+                    # print(s.size())
+                    # print(torch.zeros_like(s[:, :self.context_dim]))
+                    x_current = self.psi(s, e=torch.zeros_like(s[:, :self.context_dim]))
+                e, self.hidden_state = self.lstm(x_current, action, reward, self.hidden_state)
+                e = e.detach()
+            else:
+                e, self.hidden_state = self.lstm(s, action, reward, self.hidden_state)
+                e = e.detach()
+
+
 
 
         # Context-aware encoding of current and next state
@@ -72,6 +84,7 @@ class WorldModel(nn.Module):
 
         # Predict terminal state
         terminal_prediction = self.terminal(torch.cat((x_current, action), dim=1))
+
 
         self.prev_context = self.current_context
 
