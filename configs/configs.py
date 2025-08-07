@@ -64,6 +64,7 @@ config = {
     'cont_act': True,
     'int_reward': False,
     'with_FORT': True,
+    'use_x': False,
     'max_iter': 1000,
     'policy': 'sac',
     'max_episode_steps': 1000,                
