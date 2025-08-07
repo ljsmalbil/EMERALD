@@ -103,6 +103,7 @@ class PsiObservationWrapper(gym.ObservationWrapper):
         self.world_model = world_model
         self.config = config
         self.cartpole = cartpole
+        self.use_x = config.use_x
         self.max_buffer_size = config.max_buffer_size
         self.state_action_reward_buffer = deque()
         self.context_vector = torch.zeros(1, config.context_dim)
@@ -135,8 +136,12 @@ class PsiObservationWrapper(gym.ObservationWrapper):
             states = torch.tensor(states, dtype=torch.float32)
             actions = torch.tensor(actions, dtype=torch.float32)
             rewards = torch.tensor(rewards, dtype=torch.float32)
-            x_seq = self.world_model.psi(states, self.context_vector).detach()
-            self.context_vector, _ = self.world_model.lstm(x_seq, actions, rewards, self.cartpole)
+
+            if self.use_x:
+                x_seq = self.world_model.psi(states, self.context_vector).detach()
+                self.context_vector, _ = self.world_model.lstm(x_seq, actions, rewards, self.cartpole)
+            else:
+                self.context_vector, _ = self.world_model.lstm(states, actions, rewards, self.cartpole)
             self.context_vector = self.context_vector.detach()
 
 class StateActionTrackingWrapper(gym.Wrapper):
