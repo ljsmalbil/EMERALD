@@ -17,6 +17,7 @@ class PsiObservationWrapperEval(gym.ObservationWrapper):
         self.world_model = world_model
         self.config = config
         self.cartpole = cartpole
+        self.use_x = config.use_x
         self.buffer = deque(maxlen=config.max_buffer_size)
         self.context_vector = torch.zeros(1, config.context_dim)
         self.observation_space = gym.spaces.Box(
@@ -46,8 +47,11 @@ class PsiObservationWrapperEval(gym.ObservationWrapper):
         states = torch.tensor(states, dtype=torch.float32)
         actions = torch.tensor(actions, dtype=torch.float32)
         rewards = torch.tensor(rewards, dtype=torch.float32)
-        x_seq = self.world_model.psi(states, self.context_vector).detach()
-        self.context_vector = self.world_model.lstm(x_seq, actions, rewards, self.cartpole).detach()
+        if self.use_x:
+            x_seq = self.world_model.psi(states, self.context_vector).detach()
+            self.context_vector = self.world_model.lstm(x_seq, actions, rewards, self.cartpole).detach()
+        else:
+            self.context_vector = self.world_model.lstm(states, actions, rewards, self.cartpole).detach()
 
 
 def select_best_action_with_policy_guidance(model, world_model, x, planning_horizon=3, num_candidates=10):
