@@ -71,9 +71,10 @@ def select_best_action_with_policy_guidance(model, world_model, x, planning_hori
         x_rollout = torch.tensor(x, dtype=torch.float32)
         total_reward = 0.0
         for _ in range(planning_horizon):
-            r = world_model.rho(x_rollout.view(1, -1), a.view(1, -1))
-            total_reward += r.item()
-            x_rollout = x_rollout + world_model.tau(x_rollout.view(1, -1), a.view(1, -1))
+            with torch.no_grad():
+                r = world_model.rho(x_rollout.view(1, -1), a.view(1, -1))
+                total_reward += r.item()
+                x_rollout = x_rollout + world_model.tau(x_rollout.view(1, -1), a.view(1, -1))
         if total_reward > best_return:
             best_return = total_reward
             best_action = a
@@ -114,7 +115,8 @@ class PsiObservationWrapper(gym.ObservationWrapper):
         )
 
     def observation(self, observation):
-        x = self.world_model.psi(observation, self.context_vector).detach().numpy()
+        with torch.no_grad():
+            x = self.world_model.psi(observation, self.context_vector).detach().numpy()
         self.x_rec = x
         return x
 
@@ -138,10 +140,12 @@ class PsiObservationWrapper(gym.ObservationWrapper):
             rewards = torch.tensor(rewards, dtype=torch.float32)
 
             if self.use_x:
-                x_seq = self.world_model.psi(states, self.context_vector).detach()
-                self.context_vector, _ = self.world_model.lstm(x_seq, actions, rewards, self.cartpole)
+                with torch.no_grad():
+                    x_seq = self.world_model.psi(states, self.context_vector).detach()
+                    self.context_vector, _ = self.world_model.lstm(x_seq, actions, rewards, self.cartpole)
             else:
-                self.context_vector, _ = self.world_model.lstm(states, actions, rewards, self.cartpole)
+                with torch.no_grad():
+                    self.context_vector, _ = self.world_model.lstm(states, actions, rewards, self.cartpole)
             self.context_vector = self.context_vector.detach()
 
 class StateActionTrackingWrapper(gym.Wrapper):
@@ -194,10 +198,12 @@ class PredictedRewardWrapper(gym.RewardWrapper):
 # Utility
 # ====================
 def psi(state, world_model):
-    return world_model.psi(state)
+    with torch.no_grad():
+        return world_model.psi(state)
 
 def e_f(state, action, reward, world_model):
-    return world_model.lstm(state, action, reward)
+    with torch.no_grad():
+        return world_model.lstm(state, action, reward)
 
 # ====================
 # Environment Factory
