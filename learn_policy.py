@@ -94,8 +94,8 @@ def train_policy():
     intermed_rewards_moderate = []
     intermed_rewards_extreme = []
 
-    steps_per_iter = 100_000 if config.policy == 'ppo' else 100_000  # adjustable
-    total_iters = config.policy_iterations_learn // steps_per_iter
+    steps_per_iter = 5_000_000 #if config.policy == 'ppo' else 100_000  # adjustable
+    total_iters = 1# config.policy_iterations_learn // steps_per_iter
 
     for i in range(total_iters):
         print(f"\n=== Iteration {i + 1}/{total_iters} ===")
